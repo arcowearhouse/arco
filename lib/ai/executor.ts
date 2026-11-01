@@ -25,8 +25,8 @@ export async function executeArcoTool(
 
         // Query receipts
         let receiptsQuery = supabase
-          .from('receipts')
-          .select('id, receipt_no, date, amount, payment_method, reference_no, notes, customer:parties!receipts_customer_id_fkey(name)')
+          .from('customer_receipts')
+          .select('id, receipt_no, date, amount, payment_method, reference_no, notes, customer:parties!customer_receipts_customer_id_fkey(name)')
           .gte('date', fromDate)
           .lte('date', toDate)
         
@@ -40,7 +40,7 @@ export async function executeArcoTool(
         // Query vendor payments
         let vendorPaymentsQuery = supabase
           .from('vendor_payments')
-          .select('id, voucher_no, date, amount, payment_method, notes, vendor:parties!vendor_payments_vendor_id_fkey(name)')
+          .select('id, payment_no, date, amount, payment_method, notes, vendor:parties!vendor_payments_vendor_id_fkey(name)')
           .gte('date', fromDate)
           .lte('date', toDate)
 
@@ -164,8 +164,8 @@ export async function executeArcoTool(
 
       case 'query_customer_invoices': {
         let query = supabase
-          .from('invoices')
-          .select('id, invoice_no, date, customer:parties!invoices_customer_id_fkey(name), source_type, total_amount, paid_amount, balance_amount, status')
+          .from('customer_invoices')
+          .select('id, invoice_no, date, customer:parties!customer_invoices_customer_id_fkey(name), source_type, total_amount, paid_amount, balance_amount, status')
           .order('date', { ascending: false })
           .limit(15)
 
@@ -282,7 +282,7 @@ export async function executeArcoTool(
         const numAmount = Number(amount) || 0
 
         const { data: receipt, error: rError } = await supabase
-          .from('receipts')
+          .from('customer_receipts')
           .insert({
             receipt_no: receiptNo,
             date: todayStr,
@@ -338,20 +338,20 @@ export async function executeArcoTool(
           throw new Error(`Vendor party "${vendor_name}" not found in database.`)
         }
 
-        const voucherNo = `VP-${Date.now().toString().slice(-6)}`
+        const paymentNo = `VP-${Date.now().toString().slice(-6)}`
         const numAmount = Number(amount) || 0
 
         const { data: vp, error: vError } = await supabase
           .from('vendor_payments')
           .insert({
-            voucher_no: voucherNo,
+            payment_no: paymentNo,
             date: todayStr,
             vendor_id: party.id,
             amount: numAmount,
             payment_method: payment_method || 'cash',
             notes: notes || 'Vendor payment recorded via AI Assistant'
           })
-          .select('id, voucher_no, amount, date')
+          .select('id, payment_no, amount, date')
           .single()
 
         if (vError) throw new Error(vError.message)
@@ -371,10 +371,10 @@ export async function executeArcoTool(
 
         return {
           action: 'RECORD_VENDOR_PAYMENT',
-          details: `Recorded vendor payment ${voucherNo} of Rs ${numAmount.toLocaleString()} to ${party.name} (${payment_method}). Remaining payable balance: Rs ${updatedBal.toLocaleString()}.`,
+          details: `Recorded vendor payment ${paymentNo} of Rs ${numAmount.toLocaleString()} to ${party.name} (${payment_method}). Remaining payable balance: Rs ${updatedBal.toLocaleString()}.`,
           success: true,
           data: {
-            voucher_no: voucherNo,
+            payment_no: paymentNo,
             vendor: party.name,
             amount: numAmount,
             remaining_balance: updatedBal
@@ -514,8 +514,8 @@ export async function executeArcoTool(
       case 'query_inward_goods': {
         const limit = args.limit || 10
         let query = supabase
-          .from('inward_goods')
-          .select('id, voucher_no, date, party:parties!inward_goods_party_id_fkey(name), godown:godowns(name), bilty_no, vehicle_no, driver_name, total_bags, total_net_weight_kg, status')
+          .from('incoming_goods')
+          .select('id, voucher_no, date, party:parties!incoming_goods_party_id_fkey(name), godown:godowns(name), bilty_no, vehicle_no, driver_name, total_bags, total_net_weight_kg, status')
           .order('date', { ascending: false })
           .limit(limit)
 
@@ -886,19 +886,19 @@ export async function executeArcoTool(
         const year = args.year || now.getFullYear()
 
         const { data: payrolls } = await supabase
-          .from('payrolls')
-          .select('id, employee:employees(full_name), net_salary, status')
+          .from('payroll_periods')
+          .select('id, employee:employees(full_name), net_payable, status')
           .eq('month', month)
           .eq('year', year)
 
         const { data: advances } = await supabase
-          .from('advances')
+          .from('employee_advances')
           .select('id, employee:employees(full_name), amount, status')
           .eq('status', 'approved')
 
-        const totalPayroll = (payrolls || []).reduce((sum, p) => sum + (Number(p.net_salary) || 0), 0)
-        const unpaidSalaries = (payrolls || []).filter(p => p.status !== 'paid').reduce((sum, p) => sum + (Number(p.net_salary) || 0), 0)
-        const totalAdvances = (advances || []).reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
+        const totalPayroll = (payrolls || []).reduce((sum: number, p: any) => sum + (Number(p.net_payable) || 0), 0)
+        const unpaidSalaries = (payrolls || []).filter((p: any) => p.status !== 'paid').reduce((sum: number, p: any) => sum + (Number(p.net_payable) || 0), 0)
+        const totalAdvances = (advances || []).reduce((sum: number, a: any) => sum + (Number(a.amount) || 0), 0)
 
         return {
           action: 'QUERY_PAYROLL_SUMMARY',

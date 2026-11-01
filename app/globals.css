@@ -137,9 +137,10 @@ body {
    than a second hand-built copy. The @media print block below still
    owns paper layout (A4, chrome hidden); it comes later, so it wins
    when printing. */
-.print-document {
-  background: #ffffff;
-  color: #000000;
+.print-document,
+.printable-document {
+  background: #ffffff !important;
+  color: #111827 !important;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 11pt;
   line-height: 1.4;

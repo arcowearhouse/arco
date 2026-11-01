@@ -310,132 +310,65 @@ export default function InwardPage() {
 
       {/* Printable Inward Slip View */}
       {selectedVoucherForPrint && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 overflow-y-auto">
-          <div className="expensive-card w-full max-w-2xl p-4 sm:p-8 bg-white text-black shadow-md rounded-md printable-document space-y-6 max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-start justify-between border-b pb-4">
-              <div>
-                <h2 className="text-xl font-extrabold tracking-tight">ARCO SEED GODOWN & PROCESSING</h2>
-                <div className="text-xs text-gray-500">Official Grain Receiving & Inward Goods Slip</div>
-              </div>
-              <div className="text-right">
-                <div className="text-base font-mono font-bold">{selectedVoucherForPrint.voucher_no}</div>
-                <div className="text-xs text-gray-500">{formatDate(selectedVoucherForPrint.date)}</div>
-              </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-3xl bg-white text-slate-900 rounded-xl shadow-2xl border border-slate-200 max-h-[92dvh] overflow-y-auto flex flex-col">
+            <div className="p-4 sm:p-8 flex-1">
+              <InwardSlipPrint
+                company={company ?? undefined}
+                voucherNo={selectedVoucherForPrint.voucher_no}
+                date={formatDate(selectedVoucherForPrint.date)}
+                supplierName={selectedVoucherForPrint.party_name}
+                godown={selectedVoucherForPrint.godown_name}
+                biltyNo={selectedVoucherForPrint.bilty_no}
+                vehicleNo={selectedVoucherForPrint.vehicle_no}
+                driverName={selectedVoucherForPrint.driver_name}
+                receivedBy={(selectedVoucherForPrint as any).received_by ?? undefined}
+                byHand={(selectedVoucherForPrint as any).by_hand ? "By hand" : undefined}
+                nature={(selectedVoucherForPrint as any).nature ?? undefined}
+                items={selectedVoucherForPrint.items.map((it) => ({
+                  product: it.product_name,
+                  bags: it.bags_count,
+                  grossWeightKg: it.gross_weight_kg,
+                  tareWeightKg: it.tare_weight_kg,
+                  netWeightKg: it.net_weight_kg,
+                }))}
+                totalBags={selectedVoucherForPrint.total_bags}
+                totalNetKg={selectedVoucherForPrint.total_net_weight_kg}
+                notes={selectedVoucherForPrint.notes}
+                attachmentUrl={(selectedVoucherForPrint as any).attachment_url ?? undefined}
+                attachmentNote={(selectedVoucherForPrint as any).attachment_note ?? undefined}
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-gray-500 block">Supplier / Party:</span>
-                <strong className="text-sm">{selectedVoucherForPrint.party_name}</strong>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Unloading Godown:</span>
-                <strong className="text-sm">{selectedVoucherForPrint.godown_name}</strong>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Bilty / Transport Ref:</span>
-                <span className="font-mono">{selectedVoucherForPrint.bilty_no || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Vehicle Number:</span>
-                <span className="font-mono font-bold">{selectedVoucherForPrint.vehicle_no || "N/A"}</span>
-              </div>
-            </div>
-
-            {/* Item Details */}
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b-2 border-gray-300">
-                  <th className="py-2">Product Description</th>
-                  <th className="py-2 text-right">Bags</th>
-                  <th className="py-2 text-right">Gross Wt</th>
-                  <th className="py-2 text-right">Tare Wt</th>
-                  <th className="py-2 text-right">Net Weight</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {selectedVoucherForPrint.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-2 font-medium">{item.product_name}</td>
-                    <td className="py-2 text-right">{item.bags_count}</td>
-                    <td className="py-2 text-right">{item.gross_weight_kg} kg</td>
-                    <td className="py-2 text-right">{item.tare_weight_kg} kg</td>
-                    <td className="py-2 text-right font-bold">{item.net_weight_kg} kg</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-400 font-bold">
-                  <td className="py-2">Total Verified</td>
-                  <td className="py-2 text-right">{selectedVoucherForPrint.total_bags} bags</td>
-                  <td colSpan={2}></td>
-                  <td className="py-2 text-right text-sm">{selectedVoucherForPrint.total_net_weight_kg} kg</td>
-                </tr>
-              </tfoot>
-            </table>
-
-            {/* Signature Blocks */}
-            <div className="grid grid-cols-3 gap-6 pt-12 text-center text-xs text-gray-500">
-              <div className="border-t pt-2">Unloading Labor Head</div>
-              <div className="border-t pt-2">Godown Scale Operator</div>
-              <div className="border-t pt-2">Authorized Officer</div>
-            </div>
-
-            {(selectedVoucherForPrint as any).attachment_url && (
-              <div className="text-xs no-print">
-                <span className="text-gray-500">Scanned bill: </span>
-                <AttachmentLink url={(selectedVoucherForPrint as any).attachment_url} note={(selectedVoucherForPrint as any).attachment_note ?? undefined} />
-              </div>
-            )}
             {selectedVoucherForPrint.status === "posted" && (
-              <div className="text-xs no-print">
-                <a href="/purchases" className="underline font-semibold text-emerald-700">
-                  Create purchase bill for this receipt
+              <div className="mx-4 sm:mx-8 mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs no-print flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-900">
+                  <span className="font-bold">Purchases Integration:</span>
+                  <span>Create purchase bill for this receipt to update accounts.</span>
+                </div>
+                <a
+                  href="/purchases"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs transition-colors"
+                >
+                  Create Bill &rarr;
                 </a>
-                <span className="text-gray-500"> — the Purchases page does not pre-select a supplier from a link yet, so pick supplier “{selectedVoucherForPrint.party_name}” there. No bill is created automatically.</span>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t no-print">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 px-4 sm:px-8 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl no-print">
               <button
                 type="button"
                 onClick={() => setSelectedVoucherForPrint(null)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold cursor-pointer shadow-2xs transition-colors"
               >
                 Close
               </button>
               <PrintButton
                 label="Print Receiving Slip"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
               />
             </div>
           </div>
-        </div>
-      )}
-      {selectedVoucherForPrint && selectedVoucherForPrint.status === "posted" && (
-        <div className="hidden print:block">
-          <InwardSlipPrint
-            company={company ?? undefined}
-            voucherNo={selectedVoucherForPrint.voucher_no}
-            date={selectedVoucherForPrint.date}
-            supplierName={selectedVoucherForPrint.party_name}
-            godown={selectedVoucherForPrint.godown_name}
-            biltyNo={selectedVoucherForPrint.bilty_no}
-            vehicleNo={selectedVoucherForPrint.vehicle_no}
-            driverName={selectedVoucherForPrint.driver_name}
-            receivedBy={(selectedVoucherForPrint as any).received_by ?? undefined}
-            byHand={(selectedVoucherForPrint as any).by_hand ? "By hand" : undefined}
-            nature={(selectedVoucherForPrint as any).nature ?? undefined}
-            items={selectedVoucherForPrint.items.map((it) => ({
-              product: it.product_name, bags: it.bags_count, grossWeightKg: it.gross_weight_kg,
-              tareWeightKg: it.tare_weight_kg, netWeightKg: it.net_weight_kg,
-            }))}
-            totalBags={selectedVoucherForPrint.total_bags}
-            totalNetKg={selectedVoucherForPrint.total_net_weight_kg}
-            notes={selectedVoucherForPrint.notes}
-            attachmentUrl={(selectedVoucherForPrint as any).attachment_url ?? undefined}
-            attachmentNote={(selectedVoucherForPrint as any).attachment_note ?? undefined}
-          />
         </div>
       )}
       <InwardDialog
