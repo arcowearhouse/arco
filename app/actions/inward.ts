@@ -390,7 +390,7 @@ export async function createInwardDraft(input: {
     // report). Until it is applied, degrade instead of breaking
     // inward entirely: retry without the missing columns and surface
     // the loss as a warning on the returned draft.
-    const isMissingColumn = (msg: string) => /column .* does not exist/i.test(msg);
+    const isMissingColumn = (msg: string) => /column .* does not exist|could not find the '.*' column.*in the schema cache|schema cache/i.test(msg);
     let columnsWarning: string | undefined;
     const headerRow = {
       voucher_no: voucherNo,

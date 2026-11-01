@@ -128,8 +128,11 @@ function PartiesPageInner() {
     router.replace(`?${params.toString()}`, { scroll: false })
   }
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const [pa, ob] = await Promise.all([listParties(true), listOpeningBalances()])
       if (!pa.success) setError(pa.error ?? "Could not load parties.")
@@ -141,6 +144,7 @@ function PartiesPageInner() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load parties.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

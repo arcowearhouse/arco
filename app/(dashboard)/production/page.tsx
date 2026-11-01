@@ -75,8 +75,11 @@ export default function ProductionPage() {
   const [todayStr, setTodayStr] = React.useState<string | null>(null)
   React.useEffect(() => { setTodayStr(new Date().toISOString().slice(0, 10)) }, [])
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getProductionInitData()
       if (!initRes.success) {
@@ -102,6 +105,7 @@ export default function ProductionPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load production data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

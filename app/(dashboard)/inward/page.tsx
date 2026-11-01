@@ -62,8 +62,11 @@ export default function InwardPage() {
   const [todayStr, setTodayStr] = React.useState<string | null>(null)
   React.useEffect(() => { setTodayStr(new Date().toISOString().slice(0, 10)) }, [])
 
+  const hasLoadedRef = React.useRef(false)
   const loadInwardPage = async (page: number) => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getInwardInitData({
         page,
@@ -107,6 +110,7 @@ export default function InwardPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load inward data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }

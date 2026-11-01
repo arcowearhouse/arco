@@ -240,8 +240,11 @@ export default function InventoryPage() {
     }
   }, [])
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const res = await getInventoryInitData()
       if (!res.success) {
@@ -259,6 +262,7 @@ export default function InventoryPage() {
     } catch (err) {
       setTransferError(err instanceof Error ? err.message : "Could not load inventory data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

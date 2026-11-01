@@ -90,8 +90,11 @@ export default function DaybookPage() {
     setToDate(now.toISOString().slice(0, 10))
   }, [])
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getDaybookInitData({
         from: fromDate,
@@ -131,6 +134,7 @@ export default function DaybookPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load daybook data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [fromDate, toDate, expensePage])

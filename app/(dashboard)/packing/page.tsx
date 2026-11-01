@@ -149,8 +149,11 @@ function PackingPageInner() {
   const batchGuard = React.useRef(false)
   const [isBatchPending, setIsBatchPending] = React.useState(false)
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getPackingInitData()
       if (!initRes.success) {
@@ -200,6 +203,7 @@ function PackingPageInner() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load packing data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])
