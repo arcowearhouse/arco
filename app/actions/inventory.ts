@@ -577,6 +577,128 @@ export async function listAdjustments(filters?: {
   }
 }
 
+// ---------------- Opening stock ----------------
+/**
+ * Creates one opening_balances row of kind "stock" for a godown x
+ * product x owner pool. This is the manual-form counterpart of the
+ * migration-page opening (finance.ts createOpeningBalance, same row
+ * shape: balance_kind, entity_key, godown_id, product_id, party_id,
+ * quantity, as_of, approved_by, created_by + audit entry) — but it
+ * lives here, behind the stock write gate, so stock operators can add
+ * openings from the Stock page without touching party openings.
+ *
+ * No ledger row is written, on purpose: getStockSummary /
+ * getInventoryInitData already fold every kind-"stock" opening row
+ * into the summary via applyOpeningBalances, and the summary comment
+ * warns that writing it in both places would double-count. That also
+ * means a new opening appears in the summary but NOT in the Movement
+ * Ledger or Ageing views — exactly like every existing opening row,
+ * which likewise carries no ledger date.
+ *
+ * One opening per pool: a second row for the same godown, product and
+ * owner would add to the same summary pool, so it is refused with a
+ * plain message (correct it with a stock adjustment instead). The
+ * entity_key unique constraint is the backstop for the race; its
+ * violation surfaces as the same plain failure, never a crash.
+ * The opening date is required but has NO past-date restriction:
+ * stock that is 10–15 days old is entered with its real past date,
+ * and the summary ignores as_of entirely, so the date cannot hide
+ * the row.
+ */
+export async function createOpeningStock(input: {
+  godownId: string;
+  productId: string;
+  /** Optional owner party; omitted (null) means Company stock. */
+  partyId?: string;
+  quantityKg: number;
+  /** Opening date, YYYY-MM-DD. Past dates are allowed. */
+  asOf: string;
+}): Promise<ActionResult> {
+  try {
+    if (!input?.godownId || !input?.productId) {
+      return fail("Godown and product are required");
+    }
+    if (!Number.isFinite(input.quantityKg) || input.quantityKg <= 0) {
+      return fail("Opening quantity must be > 0 kg");
+    }
+    if (!input.asOf?.trim()) return fail("Opening date is required");
+    const asOf = input.asOf.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
+      return fail("Opening date must be a valid date (YYYY-MM-DD)");
+    }
+    const parsed = new Date(`${asOf}T00:00:00Z`);
+    if (
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== asOf
+    ) {
+      return fail("Opening date must be a valid date (YYYY-MM-DD)");
+    }
+    const supabase = await createClient();
+    const gate = await requireWrite(supabase);
+    if ("error" in gate) return fail(gate.error);
+    const partyId = input.partyId?.trim() ? input.partyId.trim() : null;
+    const godown = await supabase.from("godowns").select("id").eq("id", input.godownId).single();
+    if (godown.error) return fail("Godown not found");
+    const product = await supabase.from("products").select("id").eq("id", input.productId).single();
+    if (product.error) return fail("Product not found");
+    if (partyId) {
+      const party = await supabase.from("parties").select("id").eq("id", partyId).single();
+      if (party.error) return fail("Stock owner not found");
+    }
+    let dupQuery = supabase
+      .from("opening_balances")
+      .select("id")
+      .eq("balance_kind", "stock")
+      .eq("godown_id", input.godownId)
+      .eq("product_id", input.productId);
+    if (partyId) dupQuery = dupQuery.eq("party_id", partyId);
+    else dupQuery = dupQuery.is("party_id", null);
+    const dup = await dupQuery.limit(1);
+    if (!dup.error && (dup.data ?? []).length > 0) {
+      return fail(
+        "An opening for this godown, product and owner already exists. Correct it with a stock adjustment — a second opening row would double-count stock.",
+      );
+    }
+    const { data, error } = await supabase
+      .from("opening_balances")
+      .insert({
+        balance_kind: "stock",
+        entity_key: `stock:${input.godownId}:${input.productId}:${partyId ?? "company"}`,
+        godown_id: input.godownId,
+        product_id: input.productId,
+        party_id: partyId,
+        quantity: roundWeight(input.quantityKg),
+        amount: 0,
+        as_of: asOf,
+        source_note: null,
+        approved_by: gate.actor.userId,
+        created_by: gate.actor.userId,
+      })
+      .select()
+      .single();
+    if (error) return fail(error.message);
+    await logAudit(supabase, {
+      action: "create",
+      entityType: "opening_balances",
+      entityId: data.id,
+      after: {
+        balance_kind: "stock",
+        godown_id: input.godownId,
+        product_id: input.productId,
+        party_id: partyId,
+        quantity: roundWeight(input.quantityKg),
+        as_of: asOf,
+      },
+      userId: gate.actor.userId,
+      userEmail: gate.actor.email,
+    });
+    revalidateInventory();
+    return ok(data);
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
 // ---------------- Transfers ----------------
 /** Creates a transfer in DRAFT status — no ledger movement until posted. */
 export async function createTransfer(input: {

@@ -17,7 +17,7 @@ import {
   Plus,
   Download,
 } from "lucide-react"
-import { getInventoryInitData, getStockSummary, getStockLedger, getStockAgeing, reverseTransfer, createAdjustment, postAdjustment, reverseAdjustment, listTransfers, listAdjustments } from "@/app/actions/inventory"
+import { getInventoryInitData, getStockSummary, getStockLedger, getStockAgeing, reverseTransfer, createAdjustment, postAdjustment, reverseAdjustment, listTransfers, listAdjustments, createOpeningStock } from "@/app/actions/inventory"
 import { listGodowns, listProducts, listParties } from "@/app/actions/masters"
 import { StockLedgerEntry, Godown, Product, Party } from "@/lib/types/database"
 import { formatWeight, formatBags, formatDateTime } from "@/lib/utils"
@@ -33,7 +33,7 @@ import {
 import { InventorySkeleton } from "@/components/route-skeletons"
 import { InventoryTransferDialog } from "@/components/inventory-transfer-dialog"
 import { InventoryAdjustmentDialog } from "@/components/inventory-adjustment-dialog"
-import { GodownSelect } from "@/components/erp-form"
+import { GodownSelect, Modal, Field, inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/erp-form"
 
 // Summary, ledger and count rows, memoized so the page's frequent
 // re-renders (search typing, count typing, collapse toggles) skip rows
@@ -157,6 +157,17 @@ export default function InventoryPage() {
   // tracks which one is open.
   const [isTransferModalOpen, setIsTransferModalOpen] = React.useState(false)
   const [isAdjustmentOpen, setIsAdjustmentOpen] = React.useState(false)
+  // Add Opening Stock dialog (manual form only — no file import).
+  // Owns its own form state like the transfer/adjustment dialogs; the
+  // page only tracks whether it is open.
+  const [isOpeningOpen, setIsOpeningOpen] = React.useState(false)
+  const [openingGodown, setOpeningGodown] = React.useState("")
+  const [openingProduct, setOpeningProduct] = React.useState("")
+  const [openingOwner, setOpeningOwner] = React.useState("")
+  const [openingQty, setOpeningQty] = React.useState("")
+  const [openingDate, setOpeningDate] = React.useState("")
+  const [openingError, setOpeningError] = React.useState("")
+  const [openingPending, setOpeningPending] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(true)
   const [transferError, setTransferError] = React.useState("")
   const [transferNotice, setTransferNotice] = React.useState("")
@@ -265,6 +276,54 @@ export default function InventoryPage() {
 
   // Mount load: without this the page never leaves its skeleton
   React.useEffect(() => { loadData(); setDrillFilter(getUrlFilter()) }, [loadData])
+
+  // Opening-stock dialog: fresh blank form on every open, date
+  // defaulting to today but freely changeable to any past date (the
+  // date input carries no min/max, so past dates are never blocked).
+  React.useEffect(() => {
+    if (isOpeningOpen) {
+      setOpeningGodown("")
+      setOpeningProduct("")
+      setOpeningOwner("")
+      setOpeningQty("")
+      setOpeningDate(new Date().toISOString().slice(0, 10))
+      setOpeningError("")
+      setOpeningPending(false)
+    }
+  }, [isOpeningOpen])
+
+  const handleOpeningSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (openingPending) return
+    if (!openingGodown) return setOpeningError("Select a godown for the opening stock.")
+    if (!openingProduct) return setOpeningError("Select a product for the opening stock.")
+    const qtyNum = Number(openingQty)
+    if (openingQty === "" || !Number.isFinite(qtyNum) || qtyNum <= 0) return setOpeningError("Enter the opening quantity in kg — it must be greater than 0.")
+    if (!openingDate) return setOpeningError("Select the opening date.")
+    setOpeningPending(true)
+    try {
+      const res = await createOpeningStock({
+        godownId: openingGodown,
+        productId: openingProduct,
+        partyId: openingOwner || undefined,
+        quantityKg: qtyNum,
+        asOf: openingDate,
+      })
+      if (!res.success) {
+        // Duplicate / validation / server errors land here as a plain
+        // message inside the dialog — never a crash, dialog stays open.
+        setOpeningError(res.error ?? "Could not add the opening stock.")
+        return
+      }
+      const godownName = godowns.find((g) => g.id === openingGodown)?.name ?? "the godown"
+      const productName = products.find((p) => p.id === openingProduct)?.name ?? "the product"
+      setTransferNotice(`Opening stock added: ${formatWeight(qtyNum)} of ${productName} in ${godownName} as of ${openingDate}. It now appears in the stock summary.`)
+      setIsOpeningOpen(false)
+      await loadData()
+    } finally {
+      setOpeningPending(false)
+    }
+  }
 
   // Lazy tab loader: fetch sub-registers only when switching to that tab
   React.useEffect(() => {
@@ -478,6 +537,14 @@ export default function InventoryPage() {
             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-card hover:bg-muted text-foreground border border-border text-xs font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <span>Correct stock</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpeningOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-card hover:bg-muted text-foreground border border-border text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Opening Stock</span>
           </button>
         </div>
       </div>
@@ -936,6 +1003,88 @@ export default function InventoryPage() {
         summary={rawSummary}
         onPosted={(notice) => { setTransferNotice(notice); void loadData() }}
       />
+      <Modal
+        open={isOpeningOpen}
+        onClose={() => setIsOpeningOpen(false)}
+        title="Add Opening Stock"
+        description="Stock already in the godown before this system started. It adds to the stock summary; it is not a ledger movement, so it does not appear in the Movement Ledger or Ageing — same as existing openings."
+      >
+        <form onSubmit={handleOpeningSubmit} className="space-y-4 text-xs">
+          {openingError && (
+            <p className="text-xs text-red-600 dark:text-red-400">{openingError}</p>
+          )}
+          <GodownSelect
+            id="opening-godown"
+            label="Godown"
+            value={openingGodown}
+            onChange={setOpeningGodown}
+            godowns={godowns}
+            required
+          />
+          <Field id="opening-product" label="Product" required>
+            <select
+              id="opening-product"
+              value={openingProduct}
+              onChange={(e) => setOpeningProduct(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select product</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.code})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field id="opening-owner" label="Stock owner">
+            <select
+              id="opening-owner"
+              value={openingOwner}
+              onChange={(e) => setOpeningOwner(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Company</option>
+              {parties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.code})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field id="opening-qty" label="Quantity (kg)" required>
+              <input
+                id="opening-qty"
+                type="number"
+                step="any"
+                min="0"
+                value={openingQty}
+                onChange={(e) => setOpeningQty(e.target.value)}
+                placeholder="e.g. 500"
+                className={inputClass}
+              />
+            </Field>
+            <Field id="opening-date" label="Opening date" required>
+              <input
+                id="opening-date"
+                type="date"
+                value={openingDate}
+                onChange={(e) => setOpeningDate(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <p className="text-muted-foreground">Past dates are allowed — enter the real date the stock was on hand, even if it was 10–15 days ago. One opening per godown, product and owner: to correct an existing opening, use Correct stock instead.</p>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setIsOpeningOpen(false)} className={secondaryButtonClass}>
+              Cancel
+            </button>
+            <button type="submit" disabled={openingPending} className={primaryButtonClass}>
+              <span>{openingPending ? "Adding…" : "Add Opening Stock"}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
       <ReversalDialog
         open={!!revTransfer}
         voucherLabel={revTransfer?.transfer_no ?? ""}
