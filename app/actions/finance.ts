@@ -2160,7 +2160,7 @@ export async function createExpense(input: {
       })
       .select()
       .single();
-    if (iError && /column .* does not exist/i.test(iError.message)) {
+    if (iError && /column .* does not exist|could not find the '.*' column.*in the schema cache|schema cache/i.test(iError.message)) {
       const { data: retryData, error: rError } = await db
         .from("expenses")
         .insert({

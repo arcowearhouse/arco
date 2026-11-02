@@ -44,8 +44,11 @@ export default function MachineryJobsPage() {
   const [processingTypes, setProcessingTypes] = React.useState<string[]>([])
   const [selectedJobForPrint, setSelectedJobForPrint] = React.useState<any | null>(null)
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getMachineryInitData()
       if (!initRes.success) {
@@ -69,6 +72,7 @@ export default function MachineryJobsPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load machinery data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

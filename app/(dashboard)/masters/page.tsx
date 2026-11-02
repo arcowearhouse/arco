@@ -64,8 +64,11 @@ export default function MastersPage() {
   const [deactPending, setDeactPending] = React.useState(false)
   const productGuard = React.useRef(false)
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const [pr, g, m, pk, ec, ca, pt, le] = await Promise.all([listProducts(true), listGodowns(true), listMachines(true), listPackagingTypes(true), listExpenseCategories(), listCashAccounts(), listProcessingTypes(true), getStockLedger({ limit: 500 })])
       const failed = [pr, g, m, pk, ec, ca, pt, le].find((x) => !x.success)
@@ -81,6 +84,7 @@ export default function MastersPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load master data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

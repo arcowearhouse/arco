@@ -63,9 +63,12 @@ export default function PurchasesPage() {
   const [printPurchase, setPrintPurchase] = React.useState<PurchaseVoucher | null>(null)
   const [totalPurchases, setTotalPurchases] = React.useState(0)
   const pageSize = 50
+  const hasLoadedRef = React.useRef(false)
 
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getPurchasesInitData({ page, pageSize })
       if (!initRes.success) {
@@ -94,6 +97,7 @@ export default function PurchasesPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load purchase data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [page])

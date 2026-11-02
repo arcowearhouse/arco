@@ -405,13 +405,7 @@ export async function createInwardDraft(input: {
     // degrade instead of breaking inward entirely: retry without the
     // missing columns and surface the loss as a warning on the
     // returned draft.
-    // Two phrasings are recognised: Postgres 42703 ("column ... does
-    // not exist") and the PostgREST schema-cache error Supabase JS
-    // surfaces for an insert column the live schema lacks ("Could not
-    // find the '...' column ... in the schema cache").
-    const isMissingColumn = (msg: string) =>
-      /column .* does not exist/i.test(msg) ||
-      /could not find the .* column .* in the schema cache/i.test(msg);
+    const isMissingColumn = (msg: string) => /column .* does not exist|could not find the '.*' column.*in the schema cache|schema cache/i.test(msg);
     let columnsWarning: string | undefined;
     const headerRow = {
       voucher_no: voucherNo,

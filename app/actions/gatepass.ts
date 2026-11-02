@@ -433,7 +433,7 @@ export async function createGatePassDraft(input: {
       .select()
       .single();
     if (error) {
-      if (/column .* does not exist/i.test(error.message)) {
+      if (/column .* does not exist|could not find the '.*' column.*in the schema cache|schema cache/i.test(error.message)) {
         const retry = await supabase
           .from("gate_passes")
           .insert({

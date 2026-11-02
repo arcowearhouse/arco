@@ -105,8 +105,11 @@ export default function GatePassPage() {
   const [todayStr, setTodayStr] = React.useState<string | null>(null)
   React.useEffect(() => { setTodayStr(new Date().toISOString().slice(0, 10)) }, [])
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       // Init data and the approval-setting read run together instead of
       // one after the other. The setting is display-only (the server
@@ -154,6 +157,7 @@ export default function GatePassPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load gate pass data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])

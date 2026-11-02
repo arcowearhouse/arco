@@ -67,12 +67,12 @@ export function InventoryTransferDialog({
 
   React.useEffect(() => {
     if (open) {
-      setFromId("")
-      setToId("")
-      setProductId("")
+      setFromId(godowns[0]?.id ?? "")
+      setToId(godowns[1]?.id ?? godowns[0]?.id ?? "")
+      setProductId(products[0]?.id ?? "")
       setOwnerId("")
-      setQty("")
-      setNotes("")
+      setQty("500")
+      setNotes("Inter-godown transfer for seed grading & processing")
       setError("")
       setPending(false)
       setReviewing(false)

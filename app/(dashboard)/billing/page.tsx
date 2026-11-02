@@ -65,8 +65,11 @@ export default function BillingPage() {
   const [invReverseTarget, setInvReverseTarget] = React.useState<any | null>(null)
   const [invReversing, setInvReversing] = React.useState(false)
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getBillingInitData({ receiptPage, invoicePage, pageSize })
       if (!initRes.success) {
@@ -92,6 +95,7 @@ export default function BillingPage() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load billing data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [receiptPage, invoicePage])

@@ -169,8 +169,14 @@ export function InwardSlipPrint(props: InwardSlipPrintProps) {
         </p>
       ) : null}
 
-      <PrintSectionTitle>Received By</PrintSectionTitle>
-      <SignatureRow signatures={[{ label: "Received By", name: props.receivedBy }]} />
+      <PrintSectionTitle>Signatures &amp; Approvals</PrintSectionTitle>
+      <SignatureRow
+        signatures={[
+          { label: "Unloading Labor Head" },
+          { label: "Godown Scale Operator" },
+          { label: "Authorized Officer / Received By", name: props.receivedBy },
+        ]}
+      />
     </PrintDocument>
   )
 }

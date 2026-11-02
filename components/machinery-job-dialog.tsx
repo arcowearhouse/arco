@@ -135,19 +135,26 @@ export function MachineryJobDialog({
     setMachineId(machinesProp[0]?.id ?? "")
     setGodownId(godownsProp[0]?.id ?? "")
     setProcessingType("Grading & Cleaning")
-    setOperatorName("")
-    setIsCustomerOwned(true)
+    setOperatorName(machinesProp[0]?.operator_name ?? "Ustad Farooq")
+    setIsCustomerOwned(false)
     setJobLines(
       productsProp.length > 0
-        ? [{ ...DEFAULT_LINES[0], inputProductId: productsProp[0].id, outputProductId: productsProp[0].id }]
+        ? [{
+            ...DEFAULT_LINES[0],
+            inputProductId: productsProp[0].id,
+            outputProductId: productsProp.find(p => p.category === 'finished_seed')?.id ?? productsProp[0].id,
+            inputQty: 1000,
+            outputQty: 950,
+            byproductQty: 30
+          }]
         : DEFAULT_LINES,
     )
-    setWasteWeight(0)
-    setBagCount(0)
-    setMaundKg(0)
-    setRateBasis("per_50kg")
-    setRate(85)
-    setNotes("")
+    setWasteWeight(20)
+    setBagCount(20)
+    setMaundKg(40)
+    setRateBasis("per_maund")
+    setRate(150)
+    setNotes("Standard seed cleaning & pre-grading run")
     setError("")
     setFieldErr("")
     setIsPending(false)

@@ -149,8 +149,11 @@ function PackingPageInner() {
   const batchGuard = React.useRef(false)
   const [isBatchPending, setIsBatchPending] = React.useState(false)
 
+  const hasLoadedRef = React.useRef(false)
   const loadData = React.useCallback(async () => {
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     try {
       const initRes = await getPackingInitData()
       if (!initRes.success) {
@@ -200,6 +203,7 @@ function PackingPageInner() {
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not load packing data.")
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [])
@@ -210,10 +214,12 @@ function PackingPageInner() {
 
   React.useEffect(() => {
     if (packaging.length > 0 && !packingLines[0]?.packagingId) {
-      setPackingLines((lines) => lines.map((l, i) => (i === 0 ? { ...l, packagingId: packaging[0].id } : l)))
+      setPackingLines((lines) => lines.map((l, i) => (i === 0 ? { ...l, packagingId: packaging[0].id, bags: 100, packedKg: (packaging[0].capacity_kg ?? 50) * 100 } : l)))
     }
     if (products.length > 0 && !productId) setProductId(products[0].id)
-  }, [packaging, products, packingLines, productId])
+    if (processingTypes.length > 0 && !processingType) setProcessingType(processingTypes[0])
+    if (parties.length > 0 && !partyId) setPartyId(parties[0].id)
+  }, [packaging, products, packingLines, productId, processingTypes, processingType, parties, partyId])
 
   // Batch selector: only posted batches — a draft batch's output is
   // not in stock yet, so there is nothing to pack here. Draft batches

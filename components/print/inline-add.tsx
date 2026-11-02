@@ -33,12 +33,27 @@ export function InlineAdd({
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState("")
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave(e?: React.SyntheticEvent) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    for (const f of fields) {
+      if (f.required && !(values[f.key] ?? f.options?.[0]?.value ?? "").trim()) {
+        setError(`${f.label} is required.`)
+        return
+      }
+    }
     setPending(true)
     setError("")
     try {
-      const res = await createAction(values)
+      const payload = { ...values }
+      for (const f of fields) {
+        if (!payload[f.key] && f.options?.[0]?.value) {
+          payload[f.key] = f.options[0].value
+        }
+      }
+      const res = await createAction(payload)
       if (!res?.success) { setError(res?.error || "Could not create. Check the code is unique and all required fields are filled."); return }
       const id = (res.data as { id?: string } | null)?.id
       if (id) await onCreated(id)
@@ -58,7 +73,7 @@ export function InlineAdd({
     <div className="mt-2 p-3 rounded-lg border border-border bg-muted/40 space-y-2 text-xs basis-full">
       <p className="font-bold">New {label}</p>
       {error && <p className="text-red-600">{error}</p>}
-      <form onSubmit={save} className="space-y-2">
+      <div className="space-y-2" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); void handleSave(e); } }}>
         {fields.map((f) => (
           <div key={f.key}>
             <label className="block font-medium mb-1">{f.label}{f.required ? " *" : ""}</label>
@@ -73,9 +88,9 @@ export function InlineAdd({
         ))}
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={() => { setOpen(false); setError("") }} className="px-3 py-1.5 rounded-md bg-card border border-border font-semibold cursor-pointer">Cancel</button>
-          <button type="submit" disabled={pending} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white font-bold cursor-pointer disabled:opacity-60">{pending ? "Saving…" : "Save"}</button>
+          <button type="button" onClick={handleSave} disabled={pending} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white font-bold cursor-pointer disabled:opacity-60">{pending ? "Saving…" : "Save"}</button>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

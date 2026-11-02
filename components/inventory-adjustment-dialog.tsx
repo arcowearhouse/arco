@@ -55,12 +55,12 @@ export function InventoryAdjustmentDialog({
 
   React.useEffect(() => {
     if (open) {
-      setGodownId("")
-      setProductId("")
+      setGodownId(godowns[0]?.id ?? "")
+      setProductId(products[0]?.id ?? "")
       setOwnerId("")
       setAfter("")
-      setReason("")
-      setApprover("")
+      setReason("Physical recount & scale audit adjustment")
+      setApprover("Godown Supervisor Ali")
       setError("")
       setPending(false)
     }
