@@ -334,8 +334,9 @@ export async function getGatePass(id: string): Promise<ActionResult> {
 export async function createGatePassDraft(input: {
   customerId: string;
   godownId: string;
-  vehicleNo: string;
-  driverName: string;
+  /** Optional: a pass may be saved and posted with no vehicle/driver. */
+  vehicleNo?: string;
+  driverName?: string;
   driverPhone?: string;
   transporter?: string;
   destination?: string;
@@ -364,9 +365,9 @@ export async function createGatePassDraft(input: {
 }): Promise<ActionResult> {
   try {
     if (!input?.customerId || !input?.godownId) return fail("customerId and godownId are required");
-    if (!input.vehicleNo?.trim() || !input.driverName?.trim()) {
-      return fail("vehicleNo and driverName are required");
-    }
+    // vehicleNo / driverName are intentionally NOT required here: a pass
+    // may be saved and posted with neither. customerId, godownId and at
+    // least one item line remain required, exactly as before.
     if (!input.items?.length) return fail("At least one item line is required");
     for (const item of input.items) {
       if (!item.productId) return fail("Every item needs a productId");
@@ -408,8 +409,12 @@ export async function createGatePassDraft(input: {
         customer_id: input.customerId,
         godown_id: input.godownId,
         destination: input.destination ?? null,
-        vehicle_no: input.vehicleNo.trim(),
-        driver_name: input.driverName.trim(),
+        // Stored as "" when absent: gate_passes.vehicle_no / driver_name
+        // are NOT NULL in supabase/schema.sql, so null would fail the
+        // insert. "" renders as "—" in print (PrintField/text fallback)
+        // and is safe for the register's .toLowerCase() filter.
+        vehicle_no: input.vehicleNo?.trim() ?? "",
+        driver_name: input.driverName?.trim() ?? "",
         driver_phone: input.driverPhone ?? null,
         transporter: input.transporter ?? null,
         order_ref: orderRef,
@@ -437,8 +442,8 @@ export async function createGatePassDraft(input: {
             customer_id: input.customerId,
             godown_id: input.godownId,
             destination: input.destination ?? null,
-            vehicle_no: input.vehicleNo.trim(),
-            driver_name: input.driverName.trim(),
+            vehicle_no: input.vehicleNo?.trim() ?? "",
+            driver_name: input.driverName?.trim() ?? "",
             driver_phone: input.driverPhone ?? null,
             transporter: input.transporter ?? null,
             order_ref: orderRef,

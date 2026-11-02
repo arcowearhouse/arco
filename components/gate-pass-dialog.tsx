@@ -189,8 +189,6 @@ export function GatePassDialog({
     if (isPending) return
     if (!customerId) return setError("Select the customer / receiver before issuing a gate pass.")
     if (!godownId) return setError("Select the dispatch godown so stock is deducted from the right place.")
-    if (!vehicleNo.trim()) return setError("Vehicle number is required on a gate pass.")
-    if (!driverName.trim()) return setError("Driver name is required on a gate pass.")
     if (!destination.trim()) return setError("Destination is required so the pass states where the goods are going.")
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
@@ -252,8 +250,6 @@ export function GatePassDialog({
     if (isPending) return
     if (!customerId) return setError("Select the customer / receiver before saving a draft.")
     if (!godownId) return setError("Select the dispatch godown before saving a draft.")
-    if (!vehicleNo.trim()) return setError("Vehicle number is required before saving a draft.")
-    if (!driverName.trim()) return setError("Driver name is required before saving a draft.")
     for (let i = 0; i < items.length; i++) {
       if (!items[i].productId) return setError(`Line ${i + 1}: select a product before saving a draft.`)
       if (!isPositive(Number(items[i].netWeight))) return setError(`Line ${i + 1}: net weight must be greater than zero before saving a draft.`)
@@ -372,13 +368,13 @@ export function GatePassDialog({
             </div>
 
             <div>
-              <label className="block font-medium text-foreground mb-1" htmlFor="vehicle-truck-no">Vehicle / Truck No *</label>
-              <input id="vehicle-truck-no" type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. LES-4419" className={`${inputClass} font-mono font-bold`} required />
+              <label className="block font-medium text-foreground mb-1" htmlFor="vehicle-truck-no">Vehicle / Truck No</label>
+              <input id="vehicle-truck-no" type="text" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} placeholder="e.g. LES-4419" className={`${inputClass} font-mono font-bold`} />
             </div>
 
             <div>
-              <label className="block font-medium text-foreground mb-1" htmlFor="driver-full-name">Driver Full Name *</label>
-              <input id="driver-full-name" type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Driver name" className={inputClass} required />
+              <label className="block font-medium text-foreground mb-1" htmlFor="driver-full-name">Driver Full Name</label>
+              <input id="driver-full-name" type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Driver name" className={inputClass} />
             </div>
 
             <div>
