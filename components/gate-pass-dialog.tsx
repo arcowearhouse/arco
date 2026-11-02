@@ -118,21 +118,29 @@ export function GatePassDialog({
   React.useEffect(() => {
     if (!open) return
     const finishedProds = products.filter((p) => p.category === "finished_seed" || p.category === "by_product")
+    const targetGodown = godowns.find((g) => g.code === "GDN-02") ?? godowns[0]
     setCustomerId(customers[0]?.id ?? "")
-    setGodownId(godowns[0]?.id ?? "")
-    setDestination("")
-    setReceiverName("")
-    setReceiverContact("")
+    setGodownId(targetGodown?.id ?? "")
+    setDestination("Multan Seed Market")
+    setReceiverName("Malik Tariq")
+    setReceiverContact("0300-7654321")
     setAttachmentUrl("")
     setAttachmentNote("")
-    setDispatchMode("")
-    setVehicleNo("")
-    setDriverName("")
-    setDriverPhone("")
-    setTransporter("")
-    setOrderRef("")
-    setNotes("")
-    setItems([{ productId: finishedProds[0]?.id ?? "", bags: 0, netWeight: 0, remarks: "", ownerId: "", packagingTypeId: "" }])
+    setDispatchMode("Company Delivery Truck")
+    setVehicleNo("LHR-8920")
+    setDriverName("Aslam Khan")
+    setDriverPhone("0321-9876543")
+    setTransporter("Al-Raziq Goods Transport")
+    setOrderRef("SO-2026-042")
+    setNotes("Standard certified seed customer delivery")
+    setItems([{
+      productId: finishedProds[0]?.id ?? products[0]?.id ?? "",
+      bags: 20,
+      netWeight: 1000,
+      remarks: "Certified seed bags",
+      ownerId: "",
+      packagingTypeId: packagingTypes[0]?.id ?? ""
+    }])
     setError("")
     setIsPending(false)
     setShowPostConfirm(false)
