@@ -39,6 +39,8 @@ export interface InwardSlipPrintProps {
   biltyNo?: string
   vehicleNo?: string
   driverName?: string
+  /** Record-only vehicle expense, already formatted (e.g. "PKR 1,500.00"); absent renders as "—". */
+  vehicleExpensePkr?: string
   /** Delivery method / staff member who brought the goods in. */
   byHand?: string
   nature?: string
@@ -97,6 +99,7 @@ export function InwardSlipPrint(props: InwardSlipPrintProps) {
         <PrintField label="Bilty / Transport Ref" value={props.biltyNo} />
         <PrintField label="Vehicle No." value={props.vehicleNo} />
         <PrintField label="Driver Name" value={props.driverName} />
+        <PrintField label="Vehicle Expense (PKR)" value={props.vehicleExpensePkr} />
         <PrintField label="By Hand / Delivered By" value={props.byHand} />
       </PrintInfoGrid>
 

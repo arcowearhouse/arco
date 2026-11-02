@@ -61,6 +61,8 @@ export function InwardDialog({
   const [vehicleNo, setVehicleNo] = React.useState("")
   const [driverName, setDriverName] = React.useState("")
   const [driverPhone, setDriverPhone] = React.useState("")
+  /** Raw input text; empty = no expense recorded (never blocks save/post). */
+  const [vehicleExpense, setVehicleExpense] = React.useState("")
   const [notes, setNotes] = React.useState("")
   const [inwardDate, setInwardDate] = React.useState("")
   const [receivedBy, setReceivedBy] = React.useState("")
@@ -95,6 +97,7 @@ export function InwardDialog({
     setVehicleNo("")
     setDriverName("")
     setDriverPhone("")
+    setVehicleExpense("")
     setNotes("")
     setInwardDate(new Date().toISOString().slice(0, 10))
     setReceivedBy("")
@@ -162,6 +165,20 @@ export function InwardDialog({
       lotNo: it.lotNo || undefined,
     }))
 
+  /** Parsed vehicle expense: undefined when the field is left empty. */
+  const parsedVehicleExpense = () => {
+    const raw = vehicleExpense.trim()
+    if (!raw) return undefined
+    return Number(raw)
+  }
+  /** Plain error when the expense is not a non-negative number, else "". */
+  const vehicleExpenseError = () => {
+    const parsed = parsedVehicleExpense()
+    if (parsed === undefined) return ""
+    if (!Number.isFinite(parsed) || parsed < 0) return "Vehicle expense cannot be negative."
+    return ""
+  }
+
   const draftPayload = () => ({
     partyId,
     godownId,
@@ -170,6 +187,7 @@ export function InwardDialog({
     vehicleNo: vehicleNo || undefined,
     driverName: driverName || undefined,
     driverPhone: driverPhone || undefined,
+    vehicleExpensePkr: parsedVehicleExpense(),
     notes: notes || undefined,
     receivedBy: receivedBy || undefined,
     byHand,
@@ -188,6 +206,7 @@ export function InwardDialog({
     if (!inwardDate) return setError("Select the receipt date before saving a draft.")
     if (!items.some((it) => it.productId && Number(it.grossWeight) > 0))
       return setError("Add at least one product line with a product and a gross weight greater than zero before saving a draft.")
+    if (vehicleExpenseError()) return setError(vehicleExpenseError())
     setError("")
     setIsSavingDraft(true)
     try {
@@ -212,6 +231,7 @@ export function InwardDialog({
     if (!inwardDate) return setError("Select the receipt date before posting.")
     if (totalBags <= 0 || totalNetWeight <= 0)
       return setError("Cannot post an empty receipt: add at least one product line with bags and net weight greater than zero.")
+    if (vehicleExpenseError()) return setError(vehicleExpenseError())
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
       if (!item.productId) return setError(`Line ${i + 1}: select a product.`)
@@ -390,6 +410,12 @@ export function InwardDialog({
             <div>
               <label className="block font-medium text-foreground mb-1" htmlFor="driver-contact">Driver Contact</label>
               <input id="driver-contact" type="text" value={driverPhone} onChange={(e) => setDriverPhone(e.target.value)} placeholder="0300-XXXXXXX" className={inputClass} />
+            </div>
+
+            <div>
+              <label className="block font-medium text-foreground mb-1" htmlFor="vehicle-expense">Vehicle Expense (PKR)</label>
+              <input id="vehicle-expense" type="number" min="0" step="0.01" value={vehicleExpense} onChange={(e) => setVehicleExpense(e.target.value)} placeholder="Optional" className={inputClass} />
+              <p className="mt-1 break-words text-muted-foreground">Optional. Recorded on this voucher only — it is not posted to Daybook or cash.</p>
             </div>
 
             <div>

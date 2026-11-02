@@ -302,6 +302,11 @@ export async function createInwardDraft(input: {
   /** Reference-only attachment link + note (never required). */
   attachmentUrl?: string;
   attachmentNote?: string;
+  /** Optional vehicle expense (PKR), record-only: stored on the voucher
+   *  and shown on the register/print view, NEVER posted to finance,
+   *  Daybook, cash, or any ledger. Empty/absent = no expense recorded.
+   *  Negative values are rejected below. */
+  vehicleExpensePkr?: number;
   isCustomerOwned?: boolean;
   ownerPartyId?: string;
   items: InwardItemInput[];
@@ -309,6 +314,15 @@ export async function createInwardDraft(input: {
   try {
     if (!input?.partyId || !input?.godownId) return fail("partyId and godownId are required");
     if (!input.items?.length) return fail("At least one item line is required");
+    // Vehicle expense is optional and never blocks a save/post when
+    // absent — but a negative amount is a plain error, never stored.
+    if (
+      input.vehicleExpensePkr !== undefined &&
+      input.vehicleExpensePkr !== null &&
+      (!Number.isFinite(input.vehicleExpensePkr) || input.vehicleExpensePkr < 0)
+    ) {
+      return fail("Vehicle expense cannot be negative.");
+    }
     const supabase = await createClient();
     const gate = await requireWrite(supabase);
     if ("error" in gate) return fail(gate.error);
@@ -385,12 +399,19 @@ export async function createInwardDraft(input: {
     const totalNet = roundWeight(lines.reduce((s, l) => s + l.net_weight_kg, 0));
     const totalValue = roundMoney(lines.reduce((s, l) => s + l.total_value, 0));
 
-    // New header columns (received_by / by_hand / nature) and the
-    // line lot_no column need a live-DB migration (see the STOCK-DASH
-    // report). Until it is applied, degrade instead of breaking
-    // inward entirely: retry without the missing columns and surface
-    // the loss as a warning on the returned draft.
-    const isMissingColumn = (msg: string) => /column .* does not exist/i.test(msg);
+    // New header columns (received_by / by_hand / nature, and now
+    // vehicle_expense_pkr) and the line lot_no column need a live-DB
+    // migration (see the STOCK-DASH report). Until it is applied,
+    // degrade instead of breaking inward entirely: retry without the
+    // missing columns and surface the loss as a warning on the
+    // returned draft.
+    // Two phrasings are recognised: Postgres 42703 ("column ... does
+    // not exist") and the PostgREST schema-cache error Supabase JS
+    // surfaces for an insert column the live schema lacks ("Could not
+    // find the '...' column ... in the schema cache").
+    const isMissingColumn = (msg: string) =>
+      /column .* does not exist/i.test(msg) ||
+      /could not find the .* column .* in the schema cache/i.test(msg);
     let columnsWarning: string | undefined;
     const headerRow = {
       voucher_no: voucherNo,
@@ -415,20 +436,41 @@ export async function createInwardDraft(input: {
       created_by: gate.actor.userId,
       attachment_url: input.attachmentUrl?.trim() ? input.attachmentUrl.trim() : null,
       attachment_note: input.attachmentNote?.trim() ? input.attachmentNote.trim() : null,
+      // Record-only: this column is written here and nowhere else —
+      // postInward/reverseInward never touch it and it is never fed
+      // into the atomic stock transition or any finance/daybook write.
+      vehicle_expense_pkr:
+        input.vehicleExpensePkr === undefined || input.vehicleExpensePkr === null
+          ? null
+          : roundMoney(input.vehicleExpensePkr),
     };
     let headerRes = await supabase.from("incoming_goods").insert(headerRow).select().single();
     if (headerRes.error && isMissingColumn(headerRes.error.message)) {
-      const { received_by: _rb, by_hand: _bh, nature: _n, attachment_url: _au, attachment_note: _an, created_by: _cb, ...legacyRow } = headerRow;
-      void _rb;
-      void _bh;
-      void _n;
-      void _au;
-      void _an;
-      void _cb;
-      headerRes = await supabase.from("incoming_goods").insert(legacyRow).select().single();
+      // First degrade only the newest column: if the live database
+      // only lacks vehicle_expense_pkr, the rest of the voucher (incl.
+      // received_by / by_hand / nature) still saves in full.
+      const { vehicle_expense_pkr: _ve, ...noExpenseRow } = headerRow;
+      void _ve;
+      headerRes = await supabase.from("incoming_goods").insert(noExpenseRow).select().single();
       if (!headerRes.error) {
         columnsWarning =
-          "Received-by / by-hand / nature were not saved: the live database does not have those columns yet (migration pending).";
+          "Vehicle expense was not saved: the live database does not have that column yet (migration pending).";
+      } else if (isMissingColumn(headerRes.error.message)) {
+        // Still a missing column: fall back to the pre-existing legacy
+        // shape (the older new columns are missing too).
+        const { received_by: _rb, by_hand: _bh, nature: _n, attachment_url: _au, attachment_note: _an, created_by: _cb, ...legacyRow } = noExpenseRow;
+        void _rb;
+        void _bh;
+        void _n;
+        void _au;
+        void _an;
+        void _cb;
+        headerRes = await supabase.from("incoming_goods").insert(legacyRow).select().single();
+        if (!headerRes.error) {
+          columnsWarning =
+            "Vehicle expense was not saved: the live database does not have that column yet (migration pending). " +
+            "Received-by / by-hand / nature were also not saved: the live database does not have those columns yet (migration pending).";
+        }
       }
     }
     const { data: header, error: hError } = headerRes;

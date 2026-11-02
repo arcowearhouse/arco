@@ -220,13 +220,14 @@ export default function InwardPage() {
                 <th className="pb-3 font-bold text-right">Bags</th>
                 <th className="pb-3 font-bold text-right">Net Weight</th>
                 <th className="pb-3 font-bold text-right">Total Value</th>
+                <th className="pb-3 font-bold text-right">Vehicle Expense</th>
                 <th className="pb-3 font-bold text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {visibleVouchers.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-4">
+                  <td colSpan={10} className="py-4">
                     <EmptyState
                       title={drillFilter ? "No vouchers match this filter" : "No inward vouchers yet"}
                       hint={drillFilter ? "Clear the filter, or record a new arrival." : "Inward records stock received into a godown. Posting a receipt increases stock here; the vendor bill for that receipt is created separately in Purchases. Use New Receiving Voucher to record an arrival."}
@@ -261,6 +262,11 @@ export default function InwardPage() {
                   </td>
                   <td className="py-3 text-right font-bold text-foreground">
                     {formatCurrency(v.total_value || 0)}
+                  </td>
+                  <td className="py-3 text-right font-medium text-foreground">
+                    {(v as any).vehicle_expense_pkr !== null && (v as any).vehicle_expense_pkr !== undefined
+                      ? formatCurrency(Number((v as any).vehicle_expense_pkr))
+                      : "—"}
                   </td>
                   <td className="py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -335,6 +341,15 @@ export default function InwardPage() {
               <div>
                 <span className="text-gray-500 block">Vehicle Number:</span>
                 <span className="font-mono font-bold">{selectedVoucherForPrint.vehicle_no || "N/A"}</span>
+              </div>
+              <div>
+                <span className="text-gray-500 block">Vehicle Expense (PKR):</span>
+                <span className="font-mono">
+                  {(selectedVoucherForPrint as any).vehicle_expense_pkr !== null &&
+                  (selectedVoucherForPrint as any).vehicle_expense_pkr !== undefined
+                    ? formatCurrency(Number((selectedVoucherForPrint as any).vehicle_expense_pkr))
+                    : "N/A"}
+                </span>
               </div>
             </div>
 
@@ -419,6 +434,12 @@ export default function InwardPage() {
             biltyNo={selectedVoucherForPrint.bilty_no}
             vehicleNo={selectedVoucherForPrint.vehicle_no}
             driverName={selectedVoucherForPrint.driver_name}
+            vehicleExpensePkr={
+              (selectedVoucherForPrint as any).vehicle_expense_pkr !== null &&
+              (selectedVoucherForPrint as any).vehicle_expense_pkr !== undefined
+                ? formatCurrency(Number((selectedVoucherForPrint as any).vehicle_expense_pkr))
+                : undefined
+            }
             receivedBy={(selectedVoucherForPrint as any).received_by ?? undefined}
             byHand={(selectedVoucherForPrint as any).by_hand ? "By hand" : undefined}
             nature={(selectedVoucherForPrint as any).nature ?? undefined}
