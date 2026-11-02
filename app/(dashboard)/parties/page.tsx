@@ -84,6 +84,36 @@ type PartyRow = {
   is_active?: boolean
 }
 
+/** Auto-suggested party code series, by party type. Parties only — no
+ *  other master kind and no voucher/doc numbering uses this mapping. */
+const PARTY_CODE_SERIES: Record<string, string> = {
+  supplier: "SUP",
+  customer: "CUS",
+  source: "SRC",
+  both: "BTH",
+}
+
+/** Next code in a series: max trailing numeric suffix + 1, zero-padded
+ *  to 3 digits (padStart never truncates, so 999 rolls to 1000, not 000).
+ *  Codes that do not match `<PREFIX>-<digits>` are ignored, never crash
+ *  the computation; an empty series starts at 001. The list passed in is
+ *  the already-loaded directory (listParties(true)), so codes of
+ *  inactive parties count too — a suggestion must never collide with a
+ *  code the duplicate check would still reject. */
+function nextPartyCode(type: string, codes: string[]): string | null {
+  const prefix = PARTY_CODE_SERIES[type]
+  if (!prefix) return null
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`)
+  let max = 0
+  for (const raw of codes) {
+    const m = pattern.exec(String(raw ?? "").trim())
+    if (!m) continue
+    const n = parseInt(m[1], 10)
+    if (Number.isFinite(n) && n > max) max = n
+  }
+  return `${prefix}-${String(max + 1).padStart(3, "0")}`
+}
+
 /** Signed opening, mirroring the statement reader: receivable is +,
  *  payable is −. Display only — the server action owns the real math. */
 function signedOpening(amount: number, balanceType?: string | null): number {
@@ -165,6 +195,25 @@ function PartiesPageInner() {
   const [editTarget, setEditTarget] = React.useState<PartyRow | null>(null)
   const [editForm, setEditForm] = React.useState(emptyForm)
 
+  // Last auto-suggested code for the NEW-party form only. The edit form
+  // never suggests (its code input is disabled and untouched). A type
+  // change refills the code only while it is empty or still equals this
+  // value, so a code the user deliberately typed is never clobbered.
+  // The ref is deliberately not updated by typing: once the user edits
+  // the suggestion, the code no longer equals it and later type changes
+  // leave the typed code alone.
+  const suggestedCodeRef = React.useRef("")
+
+  /** Fill the new-party code from the chosen type's series, but only
+   *  when the field is empty or still holds the previous suggestion. */
+  function suggestCodeFor(f: typeof emptyForm, type: string): typeof emptyForm {
+    if (f.code !== "" && f.code !== suggestedCodeRef.current) return { ...f, type }
+    const next = nextPartyCode(type, parties.map((p) => p.code))
+    if (next === null) return { ...f, type }
+    suggestedCodeRef.current = next
+    return { ...f, type, code: next }
+  }
+
   const dirRows = parties.filter((p) => {
     if (!dirShowInactive && p.is_active === false) return false
     if (dirType !== "all" && (p.type ?? "customer") !== dirType) return false
@@ -193,6 +242,7 @@ function PartiesPageInner() {
       })
       if (!res.success) { setError(res.error ?? "Could not create party."); return }
       setNotice(`Party ${form.name.trim()} created.`)
+      suggestedCodeRef.current = ""
       setForm(emptyForm); setShowNew(false); await loadData()
     } finally { setPending(false) }
   }
@@ -340,7 +390,7 @@ function PartiesPageInner() {
       <div><label className="block font-medium text-foreground mb-1" htmlFor={`${prefix}-name`}>Name *</label>
         <input id={`${prefix}-name`} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inputCls} required /></div>
       <div><label className="block font-medium text-foreground mb-1" htmlFor={`${prefix}-type`}>Type</label>
-        <select id={`${prefix}-type`} value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className={inputCls}>
+        <select id={`${prefix}-type`} value={f.type} onChange={(e) => setF(prefix === "new" ? suggestCodeFor(f, e.target.value) : { ...f, type: e.target.value })} className={inputCls}>
           {typeOptions.map((t) => (<option key={t} value={t}>{t}</option>))}
         </select></div>
       <div><label className="block font-medium text-foreground mb-1" htmlFor={`${prefix}-contact`}>Contact person</label>
@@ -375,7 +425,13 @@ function PartiesPageInner() {
           <p className="text-xs text-muted-foreground mt-1">Directory, statements, adjustments and opening balances for every party — customers and vendors in one place.</p>
         </div>
         {tab === "directory" && (
-          <button type="button" onClick={() => setShowNew((v) => !v)} className={btnPrimary}>{showNew ? "Close form" : "New party"}</button>
+          <button type="button" onClick={() => {
+            // Opening the form counts as choosing the default type:
+            // suggest its next code (only into an empty field, or over
+            // a previous suggestion — never over a typed code).
+            if (!showNew) setForm((current) => suggestCodeFor(current, current.type))
+            setShowNew((v) => !v)
+          }} className={btnPrimary}>{showNew ? "Close form" : "New party"}</button>
         )}
       </div>
 
