@@ -432,11 +432,12 @@ export function GatePassDialog({
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground uppercase tracking-wider">Authorized Product Line Items</span>
-              <button type="button" onClick={handleAddItem} className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer">
+              <button type="button" onClick={handleAddItem} className={`${secondaryButtonClass} inline-flex items-center gap-1.5`}>
                 <Plus className="h-3 w-3" />
-                <span>Add Item</span>
+                <span>+ Add another product to this gate pass</span>
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">One gate pass can carry many products — add a line for each kind.</p>
 
             <div className="space-y-2">
               {items.map((item, idx) => {
